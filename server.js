@@ -16,8 +16,8 @@ app.use(express.static(path.join(__dirname, "public")));
 // Run when client connects
 io.on("connection", socket => {
   socket.on("joinRoom", ({ username, room }) => {
-    const user = userJoin();
-    socket.join();
+    const user = userJoin(socket.id, username, room);
+    socket.join(user.room);
 
     // Welcome current user
     socket.emit("message", formatMessage(botName, "Welcome to ChatCord!"));
@@ -26,15 +26,20 @@ io.on("connection", socket => {
     // io.emit tells everyone whilst broadcast.emit doesn't
     // bother telling the user that's connecting
     // socket.emit only messages one person
-    socket.broadcast.emit(
-      "message",
-      formatMessage(botName, "A user has joined the chat")
-    );
+    // here we can broadcast to a specific room
+    socket.broadcast
+      .to(user.room)
+      .emit(
+        "message",
+        formatMessage(botName, `${user.username} user has joined the chat`)
+      );
   });
 
   // Listen for chatMessage
   socket.on("chatMessage", msg => {
-    io.emit("message", formatMessage("USER:", msg));
+    const user = getCurrentUser(socket.id);
+
+    io.to(user.room).emit("message", formatMessage(user.username, msg));
   });
 
   // Runs when client disconnects
